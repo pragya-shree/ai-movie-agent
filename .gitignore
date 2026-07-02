@@ -17,5 +17,4 @@ env/
 .idea/
 
 # Streamlit
-.streamlit/
-!.streamlit/secrets.toml.example
+.streamlit/secrets.toml
