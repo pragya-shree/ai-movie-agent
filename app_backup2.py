@@ -25,7 +25,6 @@ import streamlit as st
 
 from gemini_client import get_gemini_response
 from src.data_loader import load_movies, load_similarity_matrix
-from src.genre_seeds import detect_genre, seed_movie_for_genre
 from src.poster_service import fetch_poster
 from src.recommender import recommend
 
@@ -286,27 +285,7 @@ CATALOG_TITLES: list[str] = movies["title"].tolist()
 # trivial substrings/near-matches of unrelated text (e.g. inside
 # "comedy", "movie"). Used by is_movie_related() and find_movie_in_text().
 MIN_TITLE_LENGTH_FOR_MATCHING = 3
-
-# Common English opinion/filler words that must NEVER be treated as a
-# movie title, even when one happens to collide with a real catalog
-# title (e.g. the catalog contains a movie literally titled "Good").
-# Without this, "Suggest a good thriller" matches the word "good" to
-# that catalog entry via plain containment (step 1 of
-# find_movie_in_text) — a whole-word match, so it isn't caught by any
-# fuzzy-ratio cutoff — and genre detection never runs. This stoplist is
-# checked before both the containment and fuzzy-matching steps.
-COMMON_WORD_STOPLIST = {
-    "good", "great", "awesome", "nice", "best", "favorite", "favourite",
-    "cool", "amazing", "excellent", "interesting", "beautiful", "fine",
-    "fun", "fantastic", "wonderful", "perfect", "solid", "decent", "bad",
-}
-
-# The catalog, minus any title that's just a common opinion word — used
-# everywhere a free-text message is matched against titles, so those
-# words are excluded from both containment and fuzzy matching, not just
-# fuzzy matching.
-MATCHABLE_TITLES = [t for t in CATALOG_TITLES if t.lower() not in COMMON_WORD_STOPLIST]
-FUZZY_CANDIDATE_TITLES = [t for t in MATCHABLE_TITLES if len(t) >= MIN_TITLE_LENGTH_FOR_MATCHING]
+FUZZY_CANDIDATE_TITLES = [t for t in CATALOG_TITLES if len(t) >= MIN_TITLE_LENGTH_FOR_MATCHING]
 
 
 # ---------------------------
@@ -470,7 +449,7 @@ def find_movie_in_text(text: str) -> str | None:
     # Dark Knight") are always caught here, with no fuzzy cutoff
     # involved at all — this step is unaffected by the threshold changes
     # below.
-    contained = [title for title in MATCHABLE_TITLES if _title_appears_in(lowered, title)]
+    contained = [title for title in CATALOG_TITLES if _title_appears_in(lowered, title)]
     if contained:
         return max(contained, key=len)
 
@@ -502,73 +481,6 @@ def find_movie_in_text(text: str) -> str | None:
     return fuzzy[0] if fuzzy else None
 
 
-# ---------------------------
-# 🚫 UNSUPPORTED FILTERS (country/language, release year, cast)
-# ---------------------------
-# The ML engine only knows content-based similarity between the movies
-# in the catalog — it has no country/language, release-year, or cast
-# metadata to filter on. Rather than silently ignoring those parts of
-# the request (which used to just quietly drop "Canadian" from
-# "Canadian horror" and return generic horror picks) or letting Gemini
-# invent an answer about them, we detect the filter and say plainly
-# that it isn't supported yet, alongside whatever unfiltered
-# recommendation we *can* still make.
-NATIONALITY_OR_LANGUAGE_WORDS = {
-    "canadian", "american", "british", "french", "german", "italian",
-    "spanish", "korean", "japanese", "chinese", "indian", "russian",
-    "australian", "mexican", "swedish", "danish", "norwegian", "irish",
-    "dutch", "polish", "turkish", "brazilian",
-}
-
-FILTER_PATTERNS: list[tuple[str, str]] = [
-    # (regex, human-readable filter kind)
-    (r"\b(?:starring|featuring|with actor|with actress|cast(?:ing)?)\b", "a specific actor/cast"),
-    (r"\b(?:after|before|since|from)\s+(?:19|20)\d{2}\b", "a release-year"),
-    (r"\breleased?\s+in\s+(?:19|20)\d{2}\b", "a release-year"),
-]
-
-
-def detect_unsupported_filter(text: str) -> str | None:
-    """Return a short description of an unsupported filter mentioned in
-    `text`, or None if none was found.
-
-    Deliberately narrow (per spec): only flags the specific filter types
-    called out as examples — country/language, release year, and named
-    cast — rather than guessing at every possible qualifier. A genre or
-    title elsewhere in the same message is still detected and acted on
-    normally; this only adds a note about the part that can't be
-    filtered on.
-    """
-    lowered = text.lower()
-
-    words = set(re.findall(r"[a-z]+", lowered))
-    if words & NATIONALITY_OR_LANGUAGE_WORDS:
-        return "a country/language"
-
-    for pattern, kind in FILTER_PATTERNS:
-        if re.search(pattern, lowered):
-            return kind
-
-    return None
-
-
-def strip_unsupported_filter_phrases(text: str) -> str:
-    """Blank out recognized filter phrases before movie/genre detection
-    runs on the result.
-
-    Needed because a filter phrase can itself collide with a catalog
-    title — e.g. "movies after 2020" contains the word "after", which is
-    also the title of a real catalog movie, so without this the release-
-    year filter would get misread as a request for recommendations
-    similar to "After". Only used internally, on a scratch copy of the
-    message — the original user_message (unmodified) is still what's
-    shown in chat history and passed to Gemini.
-    """
-    cleaned = text
-    for pattern, _kind in FILTER_PATTERNS:
-        cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
-    return cleaned
-
 
 # ---------------------------
 # 🤝 COMBINING GEMINI + THE ML ENGINE
@@ -579,29 +491,7 @@ CHAT_PERSONA = (
 )
 
 
-def _filter_note_instruction(filter_note: str | None) -> str:
-    """Extra Gemini instruction for a detected-but-unsupported filter.
-
-    Used by both recommendation-reply builders below so a message like
-    "Canadian horror" or "movies like Inception after 2020" still gets
-    real (unfiltered) recommendations, plus an honest, brief note that
-    the filter itself isn't supported yet — never a filtered result
-    Gemini made up.
-    """
-    if not filter_note:
-        return ""
-    return (
-        f" The user's message also asked to filter by {filter_note}, which "
-        "this app doesn't support — it can only recommend by movie title or "
-        "genre, with no country/language, release-year, or cast filtering. "
-        "Briefly and politely mention that in your reply before presenting "
-        "the list below, without pretending the list was filtered."
-    )
-
-
-def build_recommendation_reply(
-    user_message: str, movie_title: str, filter_note: str | None = None
-) -> tuple[str, list[dict]]:
+def build_recommendation_reply(user_message: str, movie_title: str) -> tuple[str, list[dict]]:
     """Get real recommendations from the ML engine, then have Gemini narrate them.
 
     The ML engine (unmodified recommend()) decides *which* movies and in
@@ -623,63 +513,9 @@ def build_recommendation_reply(
         "Do not mention any movie title that isn't in that list, and do not "
         "reorder or add to it — the poster cards below your reply will show "
         "them, so you don't need to describe each one in detail."
-        f"{_filter_note_instruction(filter_note)}"
     )
     reply = get_gemini_response(user_message, context=context)
     return reply, recommendations
-
-
-def build_genre_recommendation_reply(
-    user_message: str, genre: str, filter_note: str | None = None
-) -> tuple[str, list[dict]]:
-    """Bare genre request ("horror", "suggest a comedy") -> real recommendations.
-
-    Maps the genre to a verified in-catalog seed title (src/genre_seeds.py)
-    and runs it through the exact same, unmodified recommend() as any other
-    recommendation — the ML engine still makes every title decision. The
-    seed movie is an internal implementation detail: Gemini is told not to
-    mention it, so the user just sees genre-appropriate picks appear.
-    """
-    seed_title = seed_movie_for_genre(genre)
-    names, movie_ids = recommend(seed_title, movies, similarity)
-    posters = [fetch_poster(movie_id) for movie_id in movie_ids]
-    recommendations = [
-        {"title": name, "poster_url": poster}
-        for name, poster in zip(names, posters)
-    ]
-
-    context = (
-        f"{CHAT_PERSONA} The user asked for {genre} movie recommendations. "
-        "The ML recommendation engine (content-based, cosine similarity) "
-        f"produced exactly these recommendations, in this order: "
-        f"{', '.join(names)}. Write a short, warm reply presenting them as "
-        f"{genre} picks. Do not mention any movie title that isn't in that "
-        "list, do not reorder or add to it, and do not mention how the "
-        "engine picked them internally — the poster cards below your reply "
-        "will show the titles, so you don't need to describe each one in "
-        "detail."
-        f"{_filter_note_instruction(filter_note)}"
-    )
-    reply = get_gemini_response(user_message, context=context)
-    return reply, recommendations
-
-
-def build_filter_unsupported_reply(user_message: str, filter_note: str) -> str:
-    """Filter mentioned, but no movie title or genre to still act on.
-
-    E.g. "Movies starring Tom Cruise" — nothing here for the ML engine to
-    seed a recommendation from, so just explain the limitation honestly
-    and point the user at what IS supported, instead of guessing.
-    """
-    context = (
-        f"{CHAT_PERSONA} The user asked for movies filtered by {filter_note}, "
-        "which this app doesn't support — it can only recommend by matching "
-        "a movie title already in its catalog, or by genre (e.g. horror, "
-        "comedy, thriller). Politely explain that in one or two short "
-        "sentences and ask them to name a movie they like or a genre "
-        "instead. Do not invent or suggest specific movie titles yourself."
-    )
-    return get_gemini_response(user_message, context=context)
 
 
 def build_clarifying_reply(user_message: str) -> str:
@@ -706,19 +542,9 @@ def handle_chat_message(user_message: str) -> tuple[str, list[dict]]:
     2. Otherwise, try to find a confident movie title in the message
        (covers both "recommend movies like Interstellar" and someone
        just typing "Interstellar" alone).
-    3. If no title was found but a genre was mentioned ("horror",
-       "suggest a comedy"), map it to a verified seed title and run
-       recommendations from that — instead of asking "what movie should
-       I use as a starting point?", which used to be the reply here.
-    4. Along the way, check for unsupported filters (country/language,
-       release year, named cast — e.g. "Canadian horror", "movies after
-       2020", "movies starring Tom Cruise"). A title/genre match still
-       gets real, unfiltered recommendations with an honest note about
-       the filter; if there's no title or genre to fall back on, the
-       filter alone gets its own polite "not supported yet" reply.
-    5. If no title, genre, or filter was found but the message still
-       looks movie-related by keyword, ask which movie.
-    6. Otherwise, it's just normal conversation.
+    3. If no title was found but the message still looks movie-related
+       by keyword (e.g. "I want an action movie"), ask which movie.
+    4. Otherwise, it's just normal conversation.
 
     Returns (reply_text, recommendations) — recommendations is empty
     unless the ML engine actually produced some.
@@ -726,24 +552,9 @@ def handle_chat_message(user_message: str) -> tuple[str, list[dict]]:
     if is_greeting_or_smalltalk(user_message):
         return build_general_reply(user_message), []
 
-    filter_note = detect_unsupported_filter(user_message)
-    # Detection only (title/genre) runs against a scrubbed copy so a
-    # filter phrase can't be misread as a title (see
-    # strip_unsupported_filter_phrases's docstring). The original,
-    # unmodified user_message is still what's stored/shown/sent to
-    # Gemini below.
-    search_text = strip_unsupported_filter_phrases(user_message) if filter_note else user_message
-
-    movie_title = find_movie_in_text(search_text)
+    movie_title = find_movie_in_text(user_message)
     if movie_title is not None:
-        return build_recommendation_reply(user_message, movie_title, filter_note)
-
-    genre = detect_genre(search_text)
-    if genre is not None:
-        return build_genre_recommendation_reply(user_message, genre, filter_note)
-
-    if filter_note is not None:
-        return build_filter_unsupported_reply(user_message, filter_note), []
+        return build_recommendation_reply(user_message, movie_title)
 
     if is_movie_related(user_message):
         return build_clarifying_reply(user_message), []

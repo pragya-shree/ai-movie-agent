@@ -29,6 +29,8 @@ or `src.recommender` — this module only produces conversational text.
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any
 
 from google import genai
@@ -36,6 +38,16 @@ from google.genai import errors as genai_errors
 from google.genai import types
 
 from src.config import get_gemini_api_key, GEMINI_MODEL_NAME
+
+logger = logging.getLogger(__name__)
+
+# HTTP status codes worth retrying — rate limits and transient
+# server-side/network trouble. Auth errors (401/403), bad requests
+# (400), and "not found" (404, e.g. a bad model name) are not retried,
+# since retrying them just wastes time on something that won't change.
+RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+MAX_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 1.0
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are a friendly, concise assistant for a movie recommendation app. "
@@ -130,33 +142,72 @@ def call_gemini_chat(
     """
     api_key = get_gemini_api_key()
     if not api_key:
+        logger.error("Gemini call aborted: GEMINI_API_KEY is not configured.")
         raise GeminiAPIError(ERROR_NO_API_KEY)
 
     system_instruction, contents = _messages_to_gemini(messages)
+    client = genai.Client(api_key=api_key)
+    config = types.GenerateContentConfig(
+        system_instruction=system_instruction or DEFAULT_SYSTEM_PROMPT,
+        temperature=temperature,
+        max_output_tokens=max_output_tokens,
+    )
 
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction or DEFAULT_SYSTEM_PROMPT,
-                temperature=temperature,
-                max_output_tokens=max_output_tokens,
-            ),
-        )
-        text = (response.text or "").strip()
-    except genai_errors.APIError as exc:
-        # Covers non-2xx API responses (auth failures, bad model name,
-        # rate limits, etc.) — the SDK's own error type.
-        raise GeminiAPIError(ERROR_REQUEST_FAILED) from exc
-    except Exception as exc:  # noqa: BLE001 - network/transport errors, etc.
-        raise GeminiAPIError(ERROR_REQUEST_FAILED) from exc
+    last_exc: Exception | None = None
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = client.models.generate_content(
+                model=model, contents=contents, config=config
+            )
+            text = (response.text or "").strip()
+            if not text:
+                # Not a transport failure — Gemini responded, just with
+                # nothing usable (e.g. blocked by a safety filter).
+                # Retrying won't help, so log and fail immediately.
+                logger.error(
+                    "Gemini returned an empty response (attempt %d/%d), "
+                    "model=%s.", attempt, MAX_ATTEMPTS, model
+                )
+                raise GeminiAPIError(ERROR_MALFORMED_RESPONSE)
 
-    if not text:
-        raise GeminiAPIError(ERROR_MALFORMED_RESPONSE)
+            if attempt > 1:
+                logger.info("Gemini call succeeded on attempt %d/%d.", attempt, MAX_ATTEMPTS)
+            return {"choices": [{"message": {"content": text}}]}
 
-    return {"choices": [{"message": {"content": text}}]}
+        except genai_errors.APIError as exc:
+            # The SDK's own error type — covers non-2xx API responses
+            # (auth failures, bad model name, rate limits, etc.).
+            last_exc = exc
+            status_code = getattr(exc, "code", None)
+            logger.exception(
+                "Gemini API error on attempt %d/%d (status=%s, model=%s).",
+                attempt, MAX_ATTEMPTS, status_code, model,
+            )
+            if status_code not in RETRYABLE_STATUS_CODES:
+                raise GeminiAPIError(ERROR_REQUEST_FAILED) from exc
+
+        except GeminiAPIError:
+            # Already logged above (empty-response case) — not transient,
+            # don't retry it, just propagate.
+            raise
+
+        except Exception as exc:  # noqa: BLE001 - network/transport errors, etc.
+            # Anything else (timeouts, connection errors, DNS failures,
+            # etc.) is treated as transient and retried.
+            last_exc = exc
+            logger.exception(
+                "Gemini request failed on attempt %d/%d (model=%s).",
+                attempt, MAX_ATTEMPTS, model,
+            )
+
+        if attempt < MAX_ATTEMPTS:
+            time.sleep(RETRY_BACKOFF_SECONDS * attempt)  # simple linear backoff
+
+    logger.error(
+        "Gemini call failed after %d attempts (model=%s); giving up.",
+        MAX_ATTEMPTS, model,
+    )
+    raise GeminiAPIError(ERROR_REQUEST_FAILED) from last_exc
 
 
 def get_gemini_response(user_message: str, context: str = "") -> str:
