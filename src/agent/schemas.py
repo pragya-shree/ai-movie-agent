@@ -3,9 +3,9 @@ Data structures shared across the agent layer.
 
 Kept as plain dataclasses (no pydantic dependency) so this package has
 zero new third-party requirements until an LLM client is actually wired
-in. The shapes below intentionally mirror the OpenAI/Qwen-compatible
+in. The shapes below intentionally mirror the OpenAI/Gemini-compatible
 chat-completions + tool-calling format, so swapping ``StubLLMClient`` for
-a real Qwen client later requires no changes to ``agent.py`` or
+a real Gemini client later requires no changes to ``agent.py`` or
 ``tools.py``.
 """
 
@@ -20,7 +20,7 @@ Role = Literal["system", "user", "assistant", "tool"]
 
 @dataclass
 class Message:
-    """A single turn in the conversation, OpenAI/Qwen chat-format shaped.
+    """A single turn in the conversation, OpenAI/Gemini chat-format shaped.
 
     `content` is typed as Any rather than str: for role="assistant"/"user"
     it's always plain text, but for role="tool" it carries the tool's

@@ -49,11 +49,11 @@ A smart movie recommendation system that suggests similar movies using machine l
 ```
 movie_system/
 ├── app.py                       # Streamlit entry point — Classic tab (unchanged)
-│                                 # + AI Agent (Beta) tab (new, see below)
+│                                 # + Chat tab (Gemini + ML engine combined)
 ├── movies_dict.pkl              # Precomputed movie metadata (unchanged)
 ├── similarity.pkl               # Precomputed cosine similarity matrix (unchanged)
 ├── requirements.txt
-├── .env.example                 # Template for local TMDB_API_KEY + QWEN_API_KEY
+├── .env.example                 # Template for local TMDB_API_KEY + GEMINI_API_KEY
 ├── .gitignore
 ├── .streamlit/
 │   └── secrets.toml.example     # Template for Streamlit Cloud secrets
@@ -68,36 +68,35 @@ movie_system/
 │       ├── schemas.py            # Message / ToolCall / AgentResponse dataclasses
 │       ├── tools.py               # Wraps recommender/poster as callable tools
 │       ├── llm_client.py          # LLMClient interface + StubLLMClient
-│       ├── prompts.py             # System prompt (ready for Qwen)
+│       ├── prompts.py             # System prompt (ready for Gemini)
 │       └── agent.py               # MovieAgent: the tool-calling orchestration loop
 └── README.md
 ```
 
-### 🤖 AI-Agent Architecture (new, Qwen not yet integrated)
+### 🤖 AI-Agent Architecture (chat tab now live on Gemini)
 
 The app now has two tabs:
 
 - **🎯 Classic Recommender** — exactly the original dropdown → button →
   poster-grid flow. Byte-for-byte the same algorithm, same code path.
-- **🤖 AI Agent (Beta)** — a chat interface backed by `MovieAgent`, which
-  implements a standard tool-calling loop: send the conversation to an
-  `LLMClient`, execute any tool calls it requests against the *same*
-  `recommend()` / `fetch_poster()` functions the Classic tab uses, feed
-  results back, return a reply.
+- **💬 Chat with MovieMind AI** — a chat interface that calls
+  `gemini_client.get_gemini_response()` for conversational replies, and
+  the *same* `recommend()` / `fetch_poster()` functions the Classic tab
+  uses for actual movie picks. Gemini narrates; it never invents titles.
 
-Today, `LLMClient` is implemented by `StubLLMClient` — a small
-keyword-matching stand-in with **no external API calls and no new
-dependencies** — so the full pipeline (chat → tool call → recommendation
-→ poster → reply) is provably working end-to-end right now. Swapping in
-Qwen later means adding one `QwenLLMClient(LLMClient)` class and
-changing the single line in `app.py` that constructs `MovieAgent(...)`.
-No other file — including the recommendation algorithm itself — needs
-to change.
+The `src/agent/` package (`MovieAgent`, `LLMClient`, `StubLLMClient`,
+tool-calling schemas) documented in the file tree above is a separate,
+more elaborate tool-calling architecture built earlier in this project's
+history. It is not currently wired into `app.py`'s chat tab, which
+integrates Gemini directly instead. It's left in place as a reusable
+building block if a full tool-calling agent loop is wanted later — its
+`LLMClient` interface would accept a `GeminiLLMClient` implementation
+the same way it was designed to accept a Qwen one.
 
-`get_qwen_api_key()` in `src/config.py` and the `QWEN_API_KEY` entries in
-`.env.example` / `secrets.toml.example` are already in place, following
-the exact same resolution pattern as the TMDB key, but are not read by
-anything yet.
+`get_gemini_api_key()` in `src/config.py` and the `GEMINI_API_KEY`
+entries in `.env.example` / `secrets.toml.example` are what the chat
+tab actually reads from, following the same resolution pattern as the
+TMDB key (Streamlit secrets first, then local `.env`).
 
 ---
 
@@ -133,6 +132,25 @@ No API key is ever hardcoded in the source code.
 
 ---
 
+## 🔑 API Setup (Gemini)
+
+Get an API key: https://aistudio.google.com/apikey
+
+**Local development:** add `GEMINI_API_KEY` to your `.env` (see `.env.example`).
+
+**Streamlit Community Cloud:** add it alongside `TMDB_API_KEY` in Settings → Secrets:
+
+```toml
+GEMINI_API_KEY = "your_real_key_here"
+```
+
+Without this key configured, the Chat tab still runs — `gemini_client.py`
+fails soft and shows a friendly "API key isn't configured" message
+instead of crashing. The Classic Recommender tab doesn't need this key
+at all; it never calls Gemini.
+
+---
+
 ## 🌐 Links
 - Live App: https://moviesystem-mnznjrkqmbj5pnfubpmnos.streamlit.app/
 - GitHub: https://github.com/pragya-shree/movie_system
@@ -160,9 +178,9 @@ This movie recommendation system is based on a **content-based filtering approac
 This system provides **reasonably good recommendations based on feature similarity**, but it is **not 100% accurate** and can be improved using advanced techniques like TF-IDF tuning, embeddings, or hybrid recommendation systems.
 
 ## ✨ Future Improvements
-- Conversational AI Agent layer powered by Qwen — architecture is in
-  place (`src/agent/`, see above), currently running on a stub LLM;
-  swapping in a real `QwenLLMClient` is the next step
+- Wire the `src/agent/` tool-calling architecture (`MovieAgent`) up to
+  Gemini via a `GeminiLLMClient`, for multi-turn tool-calling instead of
+  the current direct-call chat integration
 - Netflix-style UI
 - Search feature
 - Faster recommendations

@@ -1,7 +1,7 @@
 """
 Centralized configuration for the Movie Recommender app.
 
-Resolves the TMDB API key from, in order of priority:
+Resolves API keys (TMDB, Gemini) from, in order of priority:
 1. Streamlit secrets (``st.secrets``) — used on Streamlit Community Cloud.
 2. Environment variables loaded from a local ``.env`` file — used for
    local development.
@@ -32,31 +32,30 @@ TMDB_BASE_URL: str = "https://api.themoviedb.org/3/movie"
 PLACEHOLDER_POSTER_URL: str = "https://via.placeholder.com/500x750?text=No+Image"
 PLACEHOLDER_ERROR_URL: str = "https://via.placeholder.com/500x750?text=Error"
 
-# Qwen API configuration.
+# Gemini API configuration (Google Gen AI SDK — google-genai).
 #
-# NOT YET USED. This mirrors get_tmdb_api_key() below so that wiring up
-# a real QwenLLMClient later is a drop-in: the key-resolution pattern
-# (Streamlit secrets first, then .env) already exists and is tested via
-# the TMDB path. src.agent currently only uses StubLLMClient, which
-# never calls get_qwen_api_key() or reaches the network.
-QWEN_MODEL_NAME: str = "qwen-plus"
+# Resolution mirrors get_tmdb_api_key(): Streamlit secrets first, then a
+# local .env. Unlike the previous Qwen setup, there's no equivalent of
+# QWEN_BASE_URL here — the google-genai SDK targets a single fixed
+# Gemini API endpoint internally, so no region/base-URL config is needed.
+GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
 
 
-def get_qwen_api_key() -> str | None:
-    """Return the Qwen API key, or None if it isn't configured anywhere.
+def get_gemini_api_key() -> str | None:
+    """Return the Gemini API key, or None if unconfigured.
 
     Same resolution order as get_tmdb_api_key(): Streamlit secrets first,
-    then the QWEN_API_KEY environment variable. Not called anywhere yet
-    — present so the AI-agent architecture is complete ahead of actual
-    Qwen integration.
+    then the GEMINI_API_KEY environment variable (local .env). Never
+    raises if the key is missing — callers must handle a None key
+    gracefully, same convention as the TMDB key.
     """
     try:
-        if "QWEN_API_KEY" in st.secrets:
-            return str(st.secrets["QWEN_API_KEY"])
+        if "GEMINI_API_KEY" in st.secrets:
+            return str(st.secrets["GEMINI_API_KEY"])
     except Exception:
         pass
 
-    return os.environ.get("QWEN_API_KEY")
+    return os.environ.get("GEMINI_API_KEY")
 
 
 def get_tmdb_api_key() -> str | None:

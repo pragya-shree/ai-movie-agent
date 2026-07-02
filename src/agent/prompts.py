@@ -3,8 +3,8 @@ Prompt templates for the conversational agent.
 
 These are written and included now so the architecture is complete, but
 `StubLLMClient` does not read them — it decides what to do with plain
-keyword matching. Once a real `QwenLLMClient` is added, it will send
-SYSTEM_PROMPT as the first message and rely on Qwen's own tool-calling
+keyword matching. Once a real `GeminiLLMClient` is added, it will send
+SYSTEM_PROMPT as the first message and rely on Gemini's own tool-calling
 to select from the schemas in ``src.agent.tools.get_tool_schemas``.
 """
 

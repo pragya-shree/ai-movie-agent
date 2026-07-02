@@ -1,9 +1,9 @@
 """
 Pluggable LLM client interface.
 
-`LLMClient` is the seam where Qwen gets integrated later. Everything in
+`LLMClient` is the seam where Gemini gets integrated later. Everything in
 `agent.py` is written against this interface, not against any concrete
-provider — so wiring up Qwen will mean adding a `QwenLLMClient` subclass
+provider — so wiring up Gemini will mean adding a `GeminiLLMClient` subclass
 here and changing one line where `MovieAgent` is constructed. No other
 file in the project needs to change.
 
@@ -25,7 +25,7 @@ from src.agent.schemas import LLMResponse, Message, ToolCall
 
 
 class LLMClient(ABC):
-    """Abstract interface every LLM backend (stub or Qwen) must implement."""
+    """Abstract interface every LLM backend (stub or Gemini) must implement."""
 
     @abstractmethod
     def chat(
@@ -39,7 +39,7 @@ class LLMClient(ABC):
         Args:
             messages: Full conversation so far, oldest first, including
                 the system prompt as messages[0].
-            tools: Qwen/OpenAI-compatible tool schemas (see
+            tools: Gemini/OpenAI-compatible tool schemas (see
                 ``src.agent.tools.get_tool_schemas``).
 
         Returns:
@@ -49,12 +49,12 @@ class LLMClient(ABC):
 
 
 class StubLLMClient(LLMClient):
-    """Rule-based placeholder standing in for Qwen.
+    """Rule-based placeholder standing in for Gemini.
 
     This is intentionally simple and NOT meant to be a good NLU system —
     its only job is to prove out the agent architecture (tool-calling
     loop, tool execution, response formatting) so that dropping in a real
-    Qwen-backed client later is a mechanical swap, not a redesign.
+    Gemini-backed client later is a mechanical swap, not a redesign.
     """
 
     # Very small set of trigger phrases for "the user wants recommendations".

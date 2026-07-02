@@ -12,7 +12,7 @@ Agent orchestrator.
 
 This loop is written entirely against the `LLMClient` abstract interface
 (`src.agent.llm_client.LLMClient`), so it is unaffected by which
-implementation is passed in — `StubLLMClient` today, `QwenLLMClient`
+implementation is passed in — `StubLLMClient` today, `GeminiLLMClient`
 later.
 """
 

@@ -1,6 +1,6 @@
 """
 Tool layer: exposes the existing, unmodified recommendation engine to the
-agent as a set of callable "tools" with Qwen/OpenAI-compatible
+agent as a set of callable "tools" with Gemini/OpenAI-compatible
 function-calling schemas.
 
 IMPORTANT: this module does not implement any recommendation logic. It
@@ -27,11 +27,11 @@ class ToolDefinition:
 
     name: str
     description: str
-    parameters: dict[str, Any]  # JSON Schema, Qwen/OpenAI "function" format
+    parameters: dict[str, Any]  # JSON Schema, Gemini/OpenAI "function" format
     handler: Callable[..., Any]
 
     def to_schema(self) -> dict[str, Any]:
-        """Qwen/OpenAI-compatible function-calling tool definition."""
+        """Gemini/OpenAI-compatible function-calling tool definition."""
         return {
             "type": "function",
             "function": {
@@ -151,7 +151,7 @@ def build_tools(movies: pd.DataFrame, similarity) -> list[ToolDefinition]:
 
 
 def get_tool_schemas(movies: pd.DataFrame, similarity) -> list[dict[str, Any]]:
-    """Return Qwen/OpenAI-compatible tool schemas for the LLM's tools=[...] param."""
+    """Return Gemini/OpenAI-compatible tool schemas for the LLM's tools=[...] param."""
     return [tool.to_schema() for tool in build_tools(movies, similarity)]
 
 
