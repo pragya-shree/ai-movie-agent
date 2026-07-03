@@ -139,31 +139,31 @@ TMDB API → Movie Posters
 
 ## 🏠 Home Page
 
-`screenshots/home.png`
+![Home Page](screenshots/home.png)
 
 ---
 
 ## 💬 AI Chat
 
-`screenshots/chat.png`
+![AI Chat](screenshots/chat.png)
 
 ---
 
 ## 🎬 Recommendations
 
-`screenshots/recommendations.png`
+![Recommendations](screenshots/recommendations.png)
 
 ---
 
 ## 🧠 AI Explanation
 
-`screenshots/explanation.png`
+![AI Explanation](screenshots/explanation.png)
 
 ---
 
 ## 📱 Mobile Interface
 
-`screenshots/mobile_interface.jpeg`
+![Mobile Interface](screenshots/mobile_interface.jpeg)
 
 ---
 
