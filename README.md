@@ -135,7 +135,6 @@ TMDB API → Movie Posters
 
 # 📸 Screenshots
 
-> *(Add screenshots after capturing them.)*
 
 ## 🏠 Home Page
 
