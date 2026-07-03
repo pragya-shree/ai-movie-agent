@@ -1,196 +1,273 @@
-# 🎬 Movie Recommendation System
+# 🎬 MovieMind AI
 
-A machine learning-based movie recommender that suggests similar movies and displays posters using the TMDB API. Built with Python and Streamlit.
+> **Your Personal AI Movie Companion** 🤖🍿
 
----
-## Project Preview
+MovieMind AI is an intelligent movie recommendation system that combines **Machine Learning** with **Generative AI** to deliver personalized movie suggestions through natural conversations.
 
-A smart movie recommendation system that suggests similar movies using machine learning and shows real posters using TMDB API.
-
-👉 Try it live here: https://moviesystem-mnznjrkqmbj5pnfubpmnos.streamlit.app/
+Unlike traditional recommendation systems that only return similar movies, MovieMind AI acts as an AI-powered movie assistant. Users can ask for recommendations in natural language, explore genres, and receive AI-generated explanations for why each movie is recommended.
 
 ---
 
-## 📌 Features
-- 🎯 Content-based movie recommendations
-- 🎬 Movie posters using TMDB API
-- ⚡ Fast similarity-based engine
-- 🌐 Streamlit web app
-- 📊 ML similarity model
+## 🌐 Live Demo
+
+🚀 **Try MovieMind AI**
+
+https://ai-movie-agent-5fmsdmkjthdqb5tsjoxkrk.streamlit.app/
 
 ---
 
-## 🧠 Tech Stack
-- Python
-- Pandas
-- NumPy
-- Streamlit
-- Requests
-- TMDB API
+## 📂 GitHub Repository
+
+https://github.com/pragya-shree/ai-movie-agent
 
 ---
 
-## 🧠 How It Works
+# ✨ Features
 
-1. Movies are converted into feature vectors using NLP techniques
-2. Cosine similarity is used to find similar movies (precomputed, stored in `similarity.pkl`)
-3. Top matching movies are recommended
-4. Posters are fetched using TMDB API
-5. Results are displayed using Streamlit UI
+* 🤖 AI-powered conversational movie assistant using **Google Gemini**
+* 🎯 Machine Learning-based movie recommendation engine
+* 🎬 High-quality movie posters fetched from **TMDB API**
+* 💬 Natural language interaction
+* 🎭 Genre-based movie recommendations
+* 🧠 AI-generated explanations for every recommendation
+* ⚡ Fast and interactive Streamlit interface
+* ☁️ Fully deployed on Streamlit Cloud
+* 🔍 Intelligent handling of greetings and user queries
+* 🎨 Clean and responsive UI
 
-## 📊 Machine Learning Approach
+---
 
-- Technique: Content-Based Filtering
-- Vectorization: CountVectorizer / TF-IDF (done offline, prior to this app)
-- Similarity Metric: Cosine Similarity
+# 🛠️ Tech Stack
 
-## 📁 Project Structure
+### Frontend
 
+* Streamlit
+* HTML
+* CSS
+
+### Backend
+
+* Python
+
+### Machine Learning
+
+* Scikit-learn
+* Pandas
+* NumPy
+
+### AI
+
+* Google Gemini API
+
+### APIs
+
+* TMDB API
+
+### Deployment
+
+* Streamlit Cloud
+* GitHub
+
+---
+
+# 🧠 How It Works
+
+MovieMind AI combines a traditional recommendation engine with modern Generative AI.
+
+### Step 1 — User Query
+
+The user enters a movie-related request such as:
+
+* Recommend a sci-fi movie
+* Suggest movies similar to Interstellar
+* Recommend a horror movie
+
+---
+
+### Step 2 — ML Recommendation Engine
+
+The recommendation engine:
+
+* Identifies the selected movie
+* Computes similarity using a content-based filtering approach
+* Finds the most relevant movies
+* Returns the top recommendations
+
+---
+
+### Step 3 — Gemini AI
+
+Google Gemini analyzes the recommendation and generates:
+
+* Human-like explanations
+* Personalized recommendation reasons
+* Friendly conversational responses
+
+---
+
+### Step 4 — TMDB API
+
+Movie posters are dynamically fetched from TMDB to provide a visually engaging experience.
+
+---
+
+# 🏗️ Architecture
+
+```text
+                 User
+                  │
+                  ▼
+          Streamlit Web App
+                  │
+     ┌────────────┴────────────┐
+     │                         │
+     ▼                         ▼
+Recommendation Engine      Gemini AI
+     │                         │
+     ▼                         ▼
+Similar Movies       AI Explanations
+     │
+     ▼
+TMDB API → Movie Posters
 ```
-movie_system/
-├── app.py                       # Streamlit entry point — Classic tab (unchanged)
-│                                 # + Chat tab (Gemini + ML engine combined)
-├── movies_dict.pkl              # Precomputed movie metadata (unchanged)
-├── similarity.pkl               # Precomputed cosine similarity matrix (unchanged)
-├── requirements.txt
-├── .env.example                 # Template for local TMDB_API_KEY + GEMINI_API_KEY
-├── .gitignore
-├── .streamlit/
-│   └── secrets.toml.example     # Template for Streamlit Cloud secrets
-├── src/
-│   ├── __init__.py
-│   ├── config.py                 # Centralized config, secrets resolution
-│   ├── data_loader.py            # Cached pickle loading
-│   ├── recommender.py            # Core recommendation algorithm (UNCHANGED)
-│   ├── poster_service.py         # TMDB poster fetching (UNCHANGED)
-│   └── agent/                    # AI-agent architecture (new)
-│       ├── __init__.py           # Public exports
-│       ├── schemas.py            # Message / ToolCall / AgentResponse dataclasses
-│       ├── tools.py               # Wraps recommender/poster as callable tools
-│       ├── llm_client.py          # LLMClient interface + StubLLMClient
-│       ├── prompts.py             # System prompt (ready for Gemini)
-│       └── agent.py               # MovieAgent: the tool-calling orchestration loop
-└── README.md
-```
-
-### 🤖 AI-Agent Architecture (chat tab now live on Gemini)
-
-The app now has two tabs:
-
-- **🎯 Classic Recommender** — exactly the original dropdown → button →
-  poster-grid flow. Byte-for-byte the same algorithm, same code path.
-- **💬 Chat with MovieMind AI** — a chat interface that calls
-  `gemini_client.get_gemini_response()` for conversational replies, and
-  the *same* `recommend()` / `fetch_poster()` functions the Classic tab
-  uses for actual movie picks. Gemini narrates; it never invents titles.
-
-The `src/agent/` package (`MovieAgent`, `LLMClient`, `StubLLMClient`,
-tool-calling schemas) documented in the file tree above is a separate,
-more elaborate tool-calling architecture built earlier in this project's
-history. It is not currently wired into `app.py`'s chat tab, which
-integrates Gemini directly instead. It's left in place as a reusable
-building block if a full tool-calling agent loop is wanted later — its
-`LLMClient` interface would accept a `GeminiLLMClient` implementation
-the same way it was designed to accept a Qwen one.
-
-`get_gemini_api_key()` in `src/config.py` and the `GEMINI_API_KEY`
-entries in `.env.example` / `secrets.toml.example` are what the chat
-tab actually reads from, following the same resolution pattern as the
-TMDB key (Streamlit secrets first, then local `.env`).
 
 ---
 
-## ⚙️ How to Run Locally
+# 📸 Screenshots
+
+> *(Add screenshots after capturing them.)*
+
+## 🏠 Home Page
+
+`screenshots/home.png`
+
+---
+
+## 💬 AI Chat
+
+`screenshots/chat.png`
+
+---
+
+## 🎬 Recommendations
+
+`screenshots/recommendations.png`
+
+---
+
+## 🧠 AI Explanation
+
+`screenshots/explanation.png`
+
+---
+
+## 📱 Mobile Interface
+
+`screenshots/mobile_interface.jpeg`
+
+---
+
+# 🚀 Installation
+
+Clone the repository:
 
 ```bash
-git clone https://github.com/pragya-shree/movie_system.git
-cd movie_system
+git clone https://github.com/pragya-shree/ai-movie-agent.git
+```
+
+Navigate into the project:
+
+```bash
+cd ai-movie-agent
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
 
-# Set up your TMDB API key locally:
-cp .env.example .env
-# then edit .env and set TMDB_API_KEY=your_real_key
+Run the application:
 
+```bash
 streamlit run app.py
 ```
 
 ---
 
-## 🔑 API Setup (TMDB)
+# 🔐 Environment Variables
 
-Get an API key: https://www.themoviedb.org/settings/api
+Create a `.env` file for local development.
 
-**Local development:** copy `.env.example` to `.env` and set `TMDB_API_KEY`.
-
-**Streamlit Community Cloud:** open your app's Settings → Secrets, and paste in the contents of `.streamlit/secrets.toml.example` with your real key:
-
-```toml
-TMDB_API_KEY = "your_real_key_here"
+```env
+GEMINI_API_KEY=your_gemini_api_key
+TMDB_API_KEY=your_tmdb_api_key
 ```
 
-No API key is ever hardcoded in the source code.
+For Streamlit Cloud deployment, add the same keys under **Secrets**.
 
 ---
 
-## 🔑 API Setup (Gemini)
+# 📁 Project Structure
 
-Get an API key: https://aistudio.google.com/apikey
-
-**Local development:** add `GEMINI_API_KEY` to your `.env` (see `.env.example`).
-
-**Streamlit Community Cloud:** add it alongside `TMDB_API_KEY` in Settings → Secrets:
-
-```toml
-GEMINI_API_KEY = "your_real_key_here"
+```text
+ai-movie-agent/
+│
+├── app.py
+├── config.py
+├── gemini_client.py
+├── requirements.txt
+├── recommendation_engine.py
+├── data/
+├── assets/
+├── screenshots/
+├── README.md
+└── .streamlit/
 ```
 
-Without this key configured, the Chat tab still runs — `gemini_client.py`
-fails soft and shows a friendly "API key isn't configured" message
-instead of crashing. The Classic Recommender tab doesn't need this key
-at all; it never calls Gemini.
+---
+
+# 🎯 Key Highlights
+
+* Machine Learning recommendation engine
+* Google Gemini integration
+* Conversational AI interface
+* Content-based movie recommendations
+* Dynamic movie posters
+* Cloud deployment
+* Modern user interface
 
 ---
 
-## 🌐 Links
-- Live App: https://moviesystem-mnznjrkqmbj5pnfubpmnos.streamlit.app/
-- GitHub: https://github.com/pragya-shree/movie_system
-- TMDB API: https://www.themoviedb.org/settings/api
+# 🔮 Future Enhancements
+
+* User authentication
+* Watchlist management
+* Mood-based recommendations
+* Voice interaction
+* Multi-language support
+* Recommendation history
+* User ratings and feedback
+* Hybrid recommendation system
 
 ---
 
-## ⚖️ Model Validity & Limitations
+# 👩‍💻 Author
 
-This movie recommendation system is based on a **content-based filtering approach**, where movies are recommended by measuring similarity between feature vectors (such as genres, keywords, overview text, and tags).
+**Pragya Shree**
 
-### ✔️ On what basis recommendations are valid:
-- Movies are compared using **cosine similarity**
-- Similarity is calculated from text-based features like genres, keywords, and movie overview
-- The system recommends movies with the **highest similarity scores**
-
-### ⚠️ Limitations:
-- The model does not understand real-world movie meaning or context
-- It only works on **mathematical/text similarity**, not human-level understanding
-- Recommendations may sometimes include movies that feel unrelated to humans
-- Accuracy depends heavily on the quality of input features
-- It does not include user preferences or watch history (no collaborative filtering)
-
-### 💡 Conclusion:
-This system provides **reasonably good recommendations based on feature similarity**, but it is **not 100% accurate** and can be improved using advanced techniques like TF-IDF tuning, embeddings, or hybrid recommendation systems.
-
-## ✨ Future Improvements
-- Wire the `src/agent/` tool-calling architecture (`MovieAgent`) up to
-  Gemini via a `GeminiLLMClient`, for multi-turn tool-calling instead of
-  the current direct-call chat integration
-- Netflix-style UI
-- Search feature
-- Faster recommendations
-- Mobile optimization
+GitHub: https://github.com/pragya-shree
 
 ---
 
-## 👨‍💻 Author
-Pragya Shree
+# ⭐ Support
+
+If you found this project useful, consider giving it a ⭐ on GitHub.
+
+It helps others discover the project and supports future improvements.
 
 ---
 
-⭐ If you like this project, give it a star!
+## 📜 License
+
+This project is intended for educational, learning, and portfolio purposes.
