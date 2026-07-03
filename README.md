@@ -238,6 +238,16 @@ ai-movie-agent/
 
 ---
 
+## 📝 Note on AI Availability
+
+MovieMind AI uses the Google Gemini API to generate conversational responses and personalized explanations for movie recommendations. These AI-powered features depend on the availability of the external Gemini service and the API quota associated with the configured key.
+
+If the Gemini API is temporarily unavailable, experiences a service interruption, or the API quota has been exceeded, the application will continue to function using its core Machine Learning recommendation engine. Users can still receive movie recommendations, browse genres, and explore similar movies—the only affected feature is the AI-generated explanation.
+
+This design ensures that the primary recommendation functionality remains available even when the external AI service cannot be reached.
+
+---
+
 # 🔮 Future Enhancements
 
 * User authentication
